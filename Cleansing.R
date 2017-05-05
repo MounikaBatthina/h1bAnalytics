@@ -89,10 +89,18 @@ newdata %>%
   group_by(FULL_TIME_POSITION) %>%
   summarise('75%' = quantile(PREVAILING_WAGE,probs = 0.75,na.rm=TRUE))
 
+
+
+newdata$FULL_TIME_POSITION <- as.character(newdata$FULL_TIME_POSITION)
+
+
+
 newdata %>% 
   mutate(FULL_TIME_POSITION = ifelse(is.na(FULL_TIME_POSITION), 
                                      ifelse(PREVAILING_WAGE > 70000,'Y','N'), 
                                      FULL_TIME_POSITION)) -> newdata
+
+newdata$FULL_TIME_POSITION <- as.factor(newdata$FULL_TIME_POSITION)
 
 #read 52 state codes into local variable [includes DC (Washington D.C. and PR (Puerto Rico)]
 state_abbs = c("AK", "AL", "AR","AS", "AZ", "CA", "CO", "CT", "DC", "DE", "FL","FM", "GA","GU",
@@ -159,4 +167,6 @@ datana <- newdata[!row.has.na,]
 
 saveRDS(newdata,"h1b_transformed.rds")
 saveRDS(datana,"h1b_transformed_without_na.rds")
+
+h1b_transformed <- readRDS("h1b_transformed.rds")
 
