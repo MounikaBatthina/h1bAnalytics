@@ -1,4 +1,6 @@
 library(shiny)
+library(shinythemes)
+library(shinyjs)
 
 statesList = toupper(c("usa","alaska","alabama","arkansas","arizona","california","colorado",
                    "connecticut","district of columbia","delaware","florida","georgia",
@@ -14,6 +16,8 @@ state_list <- as.list(statesList)
 names(state_list) <- statesList
 
 shinyUI(fluidPage(
+  id ="inputs",  
+  theme = shinythemes::shinytheme("yeti"),
   
   # Application title
   titlePanel("H-1B Data Analysis"),
@@ -21,7 +25,7 @@ shinyUI(fluidPage(
   # Sidebar with a slider input for the number of bins
   sidebarLayout(
     sidebarPanel(
-      sliderInput("bins",
+      sliderInput("Ntop",
                   "Top Values",
                   min = 5,
                   max = 15,
@@ -30,9 +34,9 @@ shinyUI(fluidPage(
                   "Year:",
                   min = 2011,
                   max = 2016,
-                  value = c(2014,2016),
+                  value = c(2011,2016),
                   ticks= FALSE),
-      selectInput("variable", "Choose Metric",
+      selectInput("metric", "Choose Metric",
                   c("Number of Visa Applications" = "cyl",
                     "Wage Rate" = "wage",
                     "Denied" = "denied",
@@ -42,6 +46,12 @@ shinyUI(fluidPage(
                   choices = state_list),
       textInput("employer_1", "Employer Name",""),
       textInput("employer_1", "Job Title",""),
+      
+      selectInput("variable", "Choose Algoritm",
+                  c("Apriori" = "apr",
+                    "Random Forest" = "rfo",
+                    "SVM" = "svm",
+                    "Regression" = "reg")),
       actionButton("compute","Compute", icon = icon("refresh"))
     ),
     
@@ -49,9 +59,11 @@ shinyUI(fluidPage(
     mainPanel(
       #plotOutput("distPlot")
       tabsetPanel(
-        tabPanel("Plot", plotOutput("distPlot")),
-        tabPanel("Summary", verbatimTextOutput("summary")),
-        tabPanel("Table", tableOutput("table"))
+        tabPanel("Heat Map", plotOutput("distPlot")),
+        tabPanel("Job Title", plotOutput("jobTitlePlot")),
+        tabPanel("Company", plotOutput("companyPlot")),
+        tabPanel("Worksite", plotOutput("workSitePlot")),
+        tabPanel("Insights", tags$p("Top Applications are from California"))
       )
     )
   )
