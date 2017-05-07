@@ -2,7 +2,8 @@ library(shiny)
 library(shinythemes)
 library(shinyjs)
 
-statesList = toupper(c("usa","alaska","alabama","arkansas","arizona","california","colorado",
+#List of US states
+statesList = toupper(c("all states","alaska","alabama","arkansas","arizona","california","colorado",
                    "connecticut","district of columbia","delaware","florida","georgia",
                    "hawaii","iowa","idaho","illinois","indiana","kansas","kentucky",
                    "louisiana","massachusetts","maryland","maine","michigan","minnesota",
@@ -19,46 +20,39 @@ shinyUI(fluidPage(
   id ="inputs",  
   theme = shinythemes::shinytheme("yeti"),
   
-  # Application title
+  # Page title
   titlePanel("H-1B Data Analysis"),
   
   # Sidebar with a slider input for the number of bins
   sidebarLayout(
     sidebarPanel(
-      sliderInput("Ntop",
-                  "Top Values",
-                  min = 5,
-                  max = 15,
-                  value = 10),
-      sliderInput("year",
-                  "Year:",
-                  min = 2011,
-                  max = 2016,
-                  value = c(2011,2016),
-                  ticks= FALSE),
-      selectInput("metric", "Choose Metric",
-                  c("Number of Visa Applications" = "cyl",
-                    "Wage Rate" = "wage",
-                    "Denied" = "denied",
-                    "Certified" = "certified")),
-      selectInput("location",
-                  "Location",
-                  choices = state_list),
-      textInput("employer_1", "Employer Name",""),
-      textInput("employer_1", "Job Title",""),
+      sliderInput("year", "Year:", min = 2011, max = 2016, value = c(2011,2016)),
+      
+      sliderInput("slider_value", "Number of Results", min = 10, max = 30, value = 15),
+      
+      selectInput("metric", "Choose Metric", c("Number of Visa Applications" = "num_applications",
+                    "Case Status" = "case_status",
+                    "Case Certified" = "case_certified")),
+      
+      selectInput("location", "Location", choices = state_list),
+      
+      textInput("emp_name", "Employer Name",""),
+      
+      textInput("job_title", "Job Title",""),
       
       selectInput("variable", "Choose Algoritm",
-                  c("Apriori" = "apr",
-                    "Random Forest" = "rfo",
+                  c("Apriori" = "apriori",
+                    "Random Forest" = "random_forest",
                     "SVM" = "svm",
-                    "Regression" = "reg")),
-      actionButton("compute","Compute", icon = icon("refresh"))
+                    "Regression" = "regression")),
+      
+      actionButton("compute_result","Compute Results", icon = icon("refresh"))
     ),
     
     # Show a plot of the generated distribution
     mainPanel(
-      #plotOutput("distPlot")
       tabsetPanel(
+        tabPanel("Analytics", plotOutput("analyticsPlot", height=500)),
         tabPanel("Heat Map", plotOutput("distPlot")),
         tabPanel("Job Title", plotOutput("jobTitlePlot")),
         tabPanel("Company", plotOutput("companyPlot")),
