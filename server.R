@@ -12,6 +12,8 @@ library(stats)
 library(rdrop2)
 library(arules)
 library(arulesViz)
+library(stringr)
+library(e1071)
 
 data <- readRDS('h1b_transformed.rds')
 h1b_transformed_na <- readRDS("h1b_transformed_without_na.rds")
@@ -225,7 +227,12 @@ shinyServer(function(input, output) {
   
   
   output$heatmap <- renderPlot({
-    temp1 <- head(plyr::arrange(plyr::count(subset(data, YEAR %in% reactive_inputs$year),  
+    map_df <- data
+    if(reactive_inputs$job_title != "") {
+      map_df <-  filter(data, JOB_TITLE == reactive_inputs$job_title)
+    }
+    
+    temp1 <- head(plyr::arrange(plyr::count(subset(map_df, YEAR %in% reactive_inputs$year),  
                                             vars = "WORKSITE_CITY"),plyr::desc(freq)), n = reactive_inputs$slider_value)
     
     usa_geocodes <- readRDS("geocodes.rds")
@@ -239,8 +246,87 @@ shinyServer(function(input, output) {
     ggplot() + geom_polygon(data = usa, aes(x=long, y = lat, group = group)) +geom_point(data=temp1, aes_string(x="lon", y="lat", label = "WORKSITE_CITY"), color="yellow", size=2)+
       coord_fixed(1.3)+  coord_map(ylim = c(23,50),xlim=c(-130,-65)) + geom_text(data = temp1, aes(label = WORKSITE_CITY, x = lon, y = lat), hjust = 0,color="red",size=3.5)
     
+  })
+  output$svm_algo  <- renderPlot({
+    
+    print("In svm algo function")
+    
+    svm_df <- h1b_df[1:100,]
+    svm_df$PREVAILING_WAGE <- as.numeric(as.character(svm_df$PREVAILING_WAGE))
+    svm_df$CASE_STATUS <- as.character(svm_df$CASE_STATUS)
+    #svm_df$EMPLOYER_NAME <- as.character(svm_df$EMPLOYER_NAME)
+    
+    svm_df[svm_df$CASE_STATUS == "CERTIFIED",]$CASE_STATUS = 1
+    svm_df[svm_df$CASE_STATUS == "DENIED",]$CASE_STATUS = -1
+    
+    svm_df$UNIVERSITY <- as.factor(ifelse(str_detect(svm_df$EMPLOYER_NAME, "UNIVERSITY"), 1, 0))
     
     
+    # PREVAILING_WAGE 
+    #fewdata <- svm_df[1:100,]
+    svm_df <- subset(svm_df,select=c(PREVAILING_WAGE,CASE_STATUS))
+    
+    svm_df$CASE_STATUS <- as.numeric(svm_df$CASE_STATUS)
+    
+    
+    model <- svm(CASE_STATUS ~ PREVAILING_WAGE, svm_df)
+    
+    print("After Model")
+    
+    
+    # make a prediction for each X
+    predictedY <- data.frame(predict(model, svm_df))
+    colnames(predictedY) <- c("PREDICTED_VALUE")
+    
+    #predicted_vals <- data.frame(PREVAILING_WAGE = svm_df$PREVAILING_WAGE,CASE_STATUS = predictedY)
+    #svm_plot_df <- rbind( svm_df, predicted_vals)
+    svm_plot_df <- merge(svm_df,predictedY)
+    
+    # p <- ggplot(svm_plot_df, aes(PREVAILING_WAGE, CASE_STATUS))+points(svm_df$PREVAILING_WAGE,predictedY , col = "blue", pch=4)
+    # p + geom_point()
+    
+    ggplot(svm_plot_df, aes(x=PREVAILING_WAGE)) +
+      geom_point(aes(y=CASE_STATUS,colour ="blue"))+
+      geom_point(aes(y=PREDICTED_VALUE,colour ="red")) 
+    
+  })  
+  
+  output$random_forest_algo <- renderPlot({
+    # Dividing h1b_transformed_na into train and test data
+    train_na = h1b_transformed_na[1:1299875,]
+    test_na = h1b_transformed_na[1299876:2599750,]
+    
+    # Replacing the CASE_STATUS of Test data with None in h1b_na data
+    test.case.na <- data.frame(CASE_STATUS=rep("None", nrow(test_na)), test_na[,])
+    test.case.na$CASE_STATUS.1 <- NULL
+    
+    # Combine test and train datasets
+    data.combined.na <- rbind(train_na,test.case.na)
+    
+    
+    # Converting Employer name, Job Title into character
+    data.combined.na$JOB_TITLE <- as.character(data.combined.na$JOB_TITLE)
+    data.combined.na$EMPLOYER_NAME <- as.character(data.combined.na$EMPLOYER_NAME)
+    
+    # Removing extra levels from CASE_STATUS
+    data.combined.na$CASE_STATUS <- factor(data.combined.na$CASE_STATUS)
+    
+    #select the first 1000 case statuses
+    select <- train_na[1:1000,]
+    
+    # Implementing randomForest on the data
+    #install.packages("randomForest")
+    #library(randomForest)
+    
+    # Random forest training 1
+    rf.train.1 <- data.combined.na[1:1000 ,c("FULL_TIME_POSITION","PREVAILING_WAGE")]
+    rf.label <- as.factor(select$CASE_STATUS)
+    rf.label <- factor(rf.label)
+    
+    set.seed(1234)
+    rf.1 <- randomForest(x= rf.train.1,y=rf.label, importance=TRUE,ntree = 1000)
+    rf.1
+    varImpPlot(rf.1)
   })
   
 })

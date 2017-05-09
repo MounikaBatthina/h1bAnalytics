@@ -66,10 +66,13 @@ shinyUI(fluidPage(
         
         tabPanel("AR Mining", plotOutput("apprioriPlot"), plotOutput("apprioriPlot1")),
         
+        
         tabPanel("LogIt", div(style="display:inline-block",selectInput("stateOne", "State 1",choices = short_state_list)),
                  div(style="display:inline-block",selectInput("stateTwo", "State 2",choices = short_state_list)),
                  div(style="display:inline-block",selectInput("stateThree", "State 3",choices = short_state_list)),
                  plotOutput("logisticPlot")),
+        tabPanel("SVM", plotOutput("svm_algo")),
+        tabPanel("Random Forest",plotOutput("random_forest_algo")),
         
         tabPanel("Map",plotOutput("heatmap"))
       )
