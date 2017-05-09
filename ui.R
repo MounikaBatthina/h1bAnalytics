@@ -42,7 +42,7 @@ shinyUI(fluidPage(
                     "Case Denied" = "case_denied",
                     "Denied Wage Rate" = "wage_rate")),
       
-      textInput("job_title", "Job Title","x"),
+      textInput("job_title", "Job Title",""),
       # actionButton("toggle", "Toggle the following text"),
       # conditionalPanel(
       #   condition = "input.toggle % 2 == 0",
