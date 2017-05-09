@@ -46,6 +46,9 @@ shinyServer(function(input, output) {
     stateOne = "CA",
     stateTwo = "TX",
     stateThree = "IL",
+    stateW = "MI",
+    PYear = "2018",
+    Empname = "IBM INDIA PRIVATE LIMITED",
     slider_value = 15)
   
   #Event Observer for Reactive Values
@@ -63,6 +66,9 @@ shinyServer(function(input, output) {
     reactive_inputs$stateOne <- input$stateOne
     reactive_inputs$stateTwo <- input$stateTwo
     reactive_inputs$stateThree <- input$stateThree
+    reactive_inputs$stateW <- input$stateW
+    reactive_inputs$PYear <- input$PYear
+    reactive_inputs$Empname <- input$Empname
     
   })
   
@@ -327,6 +333,57 @@ shinyServer(function(input, output) {
     rf.1 <- randomForest(x= rf.train.1,y=rf.label, importance=TRUE,ntree = 1000)
     rf.1
     varImpPlot(rf.1)
+  })
+  
+  
+  output$wagePredict <- renderText({
+    print("HI VAish")
+    wage_Predict()
+  })
+  wage_Predict <- reactive({
+    if (reactive_inputs$Empname != "" & reactive_inputs$job_title != "" &
+        reactive_inputs$stateW != "" & reactive_inputs$PYear != ""){
+      print(reactive_inputs$Empname)
+      print(reactive_inputs$job_title)
+      print(reactive_inputs$stateW)
+      print(reactive_inputs$PYear)
+      newdata.frame <- subset(data, CASE_STATUS == "CERTIFIED"
+                              & PREVAILING_WAGE != "NA" & EMPLOYER_NAME == reactive_inputs$Empname 
+                              & JOB_TITLE == reactive_inputs$job_title, 
+                              select = c(YEAR,PREVAILING_WAGE, WORKSITE_STATE))
+      newdata.frame$PREVAILING_WAGE <- as.numeric(sub(",","", newdata.frame$PREVAILING_WAGE))
+      #-------------------------PLOT THE DATA-----------------------------------------
+      #ggplot (subset(newdata.frame,WORKSITE_STATE == reactive_inputs$stateW), aes(YEAR,PREVAILING_WAGE)) +geom_point()
+      
+      nmatrix<-ddply(subset(newdata.frame,WORKSITE_STATE == reactive_inputs$stateW),~YEAR,summarize, mean=mean(PREVAILING_WAGE))
+      print("HI VAish3")
+      #ggplot(data=nmatrix,aes(YEAR,mean))+geom_smooth(method="lm")+ggtitle("H1-B Mean Salary\n")
+      print(nmatrix)
+      print(nrow(nmatrix))
+      if (nrow(nmatrix) >1)
+      {
+        lm<-lm(mean~YEAR,data=nmatrix)
+        summary(lm)
+        nmatrixfitting <- data.frame(nmatrix , fitted.value= fitted (lm), residual= resid (lm))
+        
+        predict(lm,interval="confidence")
+        #-------------------------------------TEST DATA-------------------------------------
+        
+        newyear <- data.frame(YEAR = reactive_inputs$PYear)
+        newyear$YEAR <- as.numeric(sub(",","", newyear$YEAR))
+        print("vi")
+        newyear$mean <- predict(lm,newyear,type = "response")
+      }
+      else if(nrow(nmatrix) == 1){
+        print("Employer applied H1B for only one year for this job title.")
+      }
+      else{
+        print("No Previous data available.")
+      }
+    }
+    else{
+      print("")
+    }
   })
   
 })

@@ -42,7 +42,7 @@ shinyUI(fluidPage(
                     "Case Denied" = "case_denied",
                     "Denied Wage Rate" = "wage_rate")),
       
-      textInput("job_title", "Job Title",""),
+      textInput("job_title", "Job Title","WEB DEVELOPER"),
       # actionButton("toggle", "Toggle the following text"),
       # conditionalPanel(
       #   condition = "input.toggle % 2 == 0",
@@ -63,6 +63,10 @@ shinyUI(fluidPage(
         
         tabPanel("Wage Comparision", div(style="display:inline-block",selectInput("stateA", "State 1",choices = state_list)),
                  div(style="display:inline-block",selectInput("stateB", "State 2",choices = state_list)), plotOutput("wageCompare")),
+        
+        tabPanel("Wage Prediction", textInput("stateW", "Work Site State","MI"),
+                 textInput("Empname", "Employer Name","IBM INDIA PRIVATE LIMITED"),
+                 textInput("PYear", "Prediction Year","2018"),textOutput("wagePredict")),
         
         tabPanel("AR Mining", plotOutput("apprioriPlot"), plotOutput("apprioriPlot1")),
         
