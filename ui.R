@@ -64,9 +64,12 @@ shinyUI(fluidPage(
         tabPanel("Wage Comparision", div(style="display:inline-block",selectInput("stateA", "State 1",choices = state_list)),
                  div(style="display:inline-block",selectInput("stateB", "State 2",choices = state_list)), plotOutput("wageCompare")),
         
-        tabPanel("Wage Prediction", textInput("stateW", "Work Site State","MI"),
-                 textInput("Empname", "Employer Name","IBM INDIA PRIVATE LIMITED"),
-                 textInput("PYear", "Prediction Year","2018"),textOutput("wagePredict")),
+        tabPanel("Wage Prediction", 
+                 div(style="display:inline-block",textInput("stateW", "Work Site State","MI")),
+                 div(style="display:inline-block",textInput("Empname", "Employer Name","IBM INDIA PRIVATE LIMITED")),
+                 div(style="display:inline-block",textInput("PYear", "Prediction Year","2018")), 
+                 tags$p("Predicted Wage is  - "),
+                 textOutput("wagePredict")),
         
         tabPanel("AR Mining", plotOutput("apprioriPlot"), plotOutput("apprioriPlot1")),
         
@@ -75,7 +78,9 @@ shinyUI(fluidPage(
                  div(style="display:inline-block",selectInput("stateTwo", "State 2",choices = short_state_list)),
                  div(style="display:inline-block",selectInput("stateThree", "State 3",choices = short_state_list)),
                  plotOutput("logisticPlot")),
+        
         tabPanel("SVM", plotOutput("svm_algo")),
+        
         tabPanel("Random Forest",plotOutput("random_forest_algo")),
         
         tabPanel("Map",plotOutput("heatmap"))

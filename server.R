@@ -14,6 +14,7 @@ library(arules)
 library(arulesViz)
 library(stringr)
 library(e1071)
+library(randomForest)
 
 data <- readRDS('h1b_transformed.rds')
 h1b_transformed_na <- readRDS("h1b_transformed_without_na.rds")
@@ -72,16 +73,6 @@ shinyServer(function(input, output) {
     
   })
   
-  plot_input_job <- reactive({
-    plot_input(data_input(),"JOB_TITLE", "YEAR",reactive_inputs$metric,filter = TRUE, Ntop = reactive_inputs$Ntop)
-    
-  })
-  
-  output$jobTitlePlot <- renderPlot({
-    plot_output(plot_input_job(),"JOB_TITLE","YEAR", reactive_inputs$metric, "JOB TYPE",
-                metric_lab_hash[[reactive_inputs$metric]])
-  })
-  
   # Analytics Tab - Plot between Employer & Number of applications
   output$analyticsPlot <- renderPlot({
     print("Analytics Plot...")
@@ -95,18 +86,21 @@ shinyServer(function(input, output) {
       case_denied()
   })
   
-  #Apriori
+  # Wage Comparision
   output$wageCompare <-renderPlot({
     print("Compare Wage Plot...")
     
     wage_compare()
   })
   
+  # Apriori Plot
   output$apprioriPlot <- renderPlot({
+    print("Apriori Plot...")
     inspect(Rules)
     plot(Rules, method="paracoord", control=list(reorder=TRUE))
   })
   
+  # Logistic Regression
   output$logisticPlot <- renderPlot({
     
     ggplot(subset(newdata3, WORKSITE_STATE == reactive_inputs$stateOne |
@@ -125,8 +119,9 @@ shinyServer(function(input, output) {
     temp <- head(plyr::arrange(plyr::count(subset(data, YEAR %in% reactive_inputs$year),  
                                vars = "EMPLOYER_NAME"),plyr::desc(freq)), n = reactive_inputs$slider_value)
     
-    ggplot(temp, aes(x=strtrim(EMPLOYER_NAME, 20), y=freq)) + 
-      geom_bar(stat="identity") + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+    ggplot(temp, aes(x=strtrim(EMPLOYER_NAME, 20), y=freq, fill = EMPLOYER_NAME)) + 
+      geom_bar(stat="identity") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+      xlab("Employer Name") + ylab("Count") + guides(fill=FALSE)
   })
   
   case_status <- reactive({
@@ -142,7 +137,7 @@ shinyServer(function(input, output) {
     temp1 <- df[(df$EMPLOYER_NAME %in% temp$EMPLOYER_NAME), ]
     
     ggplot(temp1, aes(x = strtrim(EMPLOYER_NAME, 20) ,fill=factor(CASE_STATUS))) + 
-      geom_bar(width = 0.5) + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+      geom_bar(width = 0.5) + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + xlab("Employer Name") + ylab("Case Status")
   })
   
   wage_rate <- reactive({
@@ -153,8 +148,8 @@ shinyServer(function(input, output) {
                         Denied = c(82717, 8599, 718, 2339))
     newdf$Wage <- factor(newdf$Wage, levels = newdf$Wage)
     
-    ggplot(newdf, aes(x = Wage ,y = (newdf$Denied/newdf$Total)*100)) + 
-      geom_bar(stat = "identity") + xlab("Wage Rate") + ylab("% Denied")
+    ggplot(newdf, aes(x = Wage ,y = (newdf$Denied/newdf$Total)*100, fill = Wage)) + 
+      geom_bar(stat = "identity") + xlab("Wage Rate") + ylab("% Denied") + guides(fill=FALSE)
   })
   
   case_denied <- reactive({
@@ -197,9 +192,9 @@ shinyServer(function(input, output) {
     df16 <- arrange(df16, desc(TOTAL))
     
     ggplot(head(arrange(df16, desc(TOTAL)), n = reactive_inputs$slider_value), aes(x = strtrim(EMPLOYER_NAME, 20), 
-                                                                                   y = PERCENTAGE)) + 
+                                                                                   y = PERCENTAGE, fill = EMPLOYER_NAME)) + 
       geom_bar(stat = "identity") + 
-      theme(axis.text.x = element_text(angle = 90, hjust = 1))
+      theme(axis.text.x = element_text(angle = 90, hjust = 1)) + guides(fill=FALSE) + xlab("Employer Name") + ylab("% Denied") + guides(fill=FALSE)
   })
   
   wage_compare <- reactive({
@@ -228,14 +223,15 @@ shinyServer(function(input, output) {
     avg1 <- getAverageWage(ed1)
     
     compdata <- data.frame(State = c(reactive_inputs$stateA,reactive_inputs$stateB),Average = c(avg,avg1))
-    ggplot(compdata,aes(x= State,y = Average)) + geom_bar(stat = "identity",width = 0.5)
+    
+    ggplot(compdata,aes(x= State,y = Average, fill = State)) + geom_bar(stat = "identity",width = 0.5) + guides(fill=FALSE)
   })
   
   
   output$heatmap <- renderPlot({
     map_df <- data
     if(reactive_inputs$job_title != "") {
-      map_df <-  filter(data, JOB_TITLE == reactive_inputs$job_title)
+      map_df <-  filter(data, JOB_TITLE %in% reactive_inputs$job_title)
     }
     
     temp1 <- head(plyr::arrange(plyr::count(subset(map_df, YEAR %in% reactive_inputs$year),  
@@ -257,7 +253,7 @@ shinyServer(function(input, output) {
     
     print("In svm algo function")
     
-    svm_df <- h1b_df[1:100,]
+    svm_df <- data[1:100,]
     svm_df$PREVAILING_WAGE <- as.numeric(as.character(svm_df$PREVAILING_WAGE))
     svm_df$CASE_STATUS <- as.character(svm_df$CASE_STATUS)
     #svm_df$EMPLOYER_NAME <- as.character(svm_df$EMPLOYER_NAME)
@@ -309,7 +305,6 @@ shinyServer(function(input, output) {
     # Combine test and train datasets
     data.combined.na <- rbind(train_na,test.case.na)
     
-    
     # Converting Employer name, Job Title into character
     data.combined.na$JOB_TITLE <- as.character(data.combined.na$JOB_TITLE)
     data.combined.na$EMPLOYER_NAME <- as.character(data.combined.na$EMPLOYER_NAME)
@@ -320,10 +315,6 @@ shinyServer(function(input, output) {
     #select the first 1000 case statuses
     select <- train_na[1:1000,]
     
-    # Implementing randomForest on the data
-    #install.packages("randomForest")
-    #library(randomForest)
-    
     # Random forest training 1
     rf.train.1 <- data.combined.na[1:1000 ,c("FULL_TIME_POSITION","PREVAILING_WAGE")]
     rf.label <- as.factor(select$CASE_STATUS)
@@ -331,37 +322,36 @@ shinyServer(function(input, output) {
     
     set.seed(1234)
     rf.1 <- randomForest(x= rf.train.1,y=rf.label, importance=TRUE,ntree = 1000)
-    rf.1
+    print(rf.1)
     varImpPlot(rf.1)
   })
   
   
   output$wagePredict <- renderText({
-    print("HI VAish")
-    wage_Predict()
+    print("Wage Prediction...")
+    wage_predict()
   })
-  wage_Predict <- reactive({
+  
+  wage_predict <- reactive({
     if (reactive_inputs$Empname != "" & reactive_inputs$job_title != "" &
         reactive_inputs$stateW != "" & reactive_inputs$PYear != ""){
-      print(reactive_inputs$Empname)
-      print(reactive_inputs$job_title)
-      print(reactive_inputs$stateW)
-      print(reactive_inputs$PYear)
+
       newdata.frame <- subset(data, CASE_STATUS == "CERTIFIED"
                               & PREVAILING_WAGE != "NA" & EMPLOYER_NAME == reactive_inputs$Empname 
                               & JOB_TITLE == reactive_inputs$job_title, 
                               select = c(YEAR,PREVAILING_WAGE, WORKSITE_STATE))
+      
       newdata.frame$PREVAILING_WAGE <- as.numeric(sub(",","", newdata.frame$PREVAILING_WAGE))
+      
       #-------------------------PLOT THE DATA-----------------------------------------
       #ggplot (subset(newdata.frame,WORKSITE_STATE == reactive_inputs$stateW), aes(YEAR,PREVAILING_WAGE)) +geom_point()
       
-      nmatrix<-ddply(subset(newdata.frame,WORKSITE_STATE == reactive_inputs$stateW),~YEAR,summarize, mean=mean(PREVAILING_WAGE))
-      print("HI VAish3")
-      #ggplot(data=nmatrix,aes(YEAR,mean))+geom_smooth(method="lm")+ggtitle("H1-B Mean Salary\n")
-      print(nmatrix)
-      print(nrow(nmatrix))
-      if (nrow(nmatrix) >1)
-      {
+      nmatrix <- plyr::ddply(subset(newdata.frame, WORKSITE_STATE == reactive_inputs$stateW), 
+                             ~YEAR, summarize, mean=mean(PREVAILING_WAGE))
+      
+      ggplot(data=nmatrix,aes(YEAR,mean))+geom_smooth(method="lm")+ggtitle("H1-B Mean Salary\n")
+      
+      if (nrow(nmatrix) >1) {
         lm<-lm(mean~YEAR,data=nmatrix)
         summary(lm)
         nmatrixfitting <- data.frame(nmatrix , fitted.value= fitted (lm), residual= resid (lm))
