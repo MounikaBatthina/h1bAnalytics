@@ -10,15 +10,22 @@ library(hashmap)
 library(ggrepel)
 library(stats)
 library(rdrop2)
+library(arules)
+library(arulesViz)
 
-#data <- readRDS('h1b_transformed.rds')
-#h1b_transformed_na <- readRDS("h1b_transformed_without_na.rds")
+data <- readRDS('h1b_transformed.rds')
+h1b_transformed_na <- readRDS("h1b_transformed_without_na.rds")
 
 #1b_df <- as.data.frame(data)
   
 source("helper.R")
 
-shinyServer(function(input, output, session) {
+#Rules <- association(data)
+#newdata3 <- glmModel(data)
+Rules <- readRDS("Rules.rds")
+newdata3 <- readRDS("glmModel.rds")
+
+shinyServer(function(input, output) {
   
   print("Starting Shiny Server....")
   
@@ -28,11 +35,15 @@ shinyServer(function(input, output, session) {
   reactive_inputs <- reactiveValues(
     year = as.character(seq(2011,2016)), 
     metric = "num_applications",
+    #algorithm_input = "choose_input",
     location = "ALL STATES",
     wage_value = "300000",
     job_title = "WEB DEVELOPER",
     stateA = "LOUISIANA",
     stateB = "CALIFORNIA",
+    stateOne = "CA",
+    stateTwo = "TX",
+    stateThree = "IL",
     slider_value = 15)
   
   #Event Observer for Reactive Values
@@ -47,18 +58,11 @@ shinyServer(function(input, output, session) {
     reactive_inputs$slider_value <- input$slider_value
     reactive_inputs$stateA <- input$stateA
     reactive_inputs$stateB <- input$stateB
+    reactive_inputs$stateOne <- input$stateOne
+    reactive_inputs$stateTwo <- input$stateTwo
+    reactive_inputs$stateThree <- input$stateThree
     
-    print(input$state_1)
-    print(input$state_2)
   })
-  
-  observe({
-    if(input$metric == "num_applications") {
-      session$sendCustomMessage(type="jsCode",
-                                list(code= "$('#ex').hide()"))
-    }
-  })
-  
   
   plot_input_job <- reactive({
     plot_input(data_input(),"JOB_TITLE", "YEAR",reactive_inputs$metric,filter = TRUE, Ntop = reactive_inputs$Ntop)
@@ -88,6 +92,24 @@ shinyServer(function(input, output, session) {
     print("Compare Wage Plot...")
     
     wage_compare()
+  })
+  
+  output$apprioriPlot <- renderPlot({
+    inspect(Rules)
+    plot(Rules, method="paracoord", control=list(reorder=TRUE))
+  })
+  
+  output$logisticPlot <- renderPlot({
+    
+    ggplot(subset(newdata3, WORKSITE_STATE == reactive_inputs$stateOne |
+                    WORKSITE_STATE == reactive_inputs$stateTwo |
+                    WORKSITE_STATE == reactive_inputs$stateThree),
+           aes(x = PREVAILING_WAGE, y = PredictedProb)) +
+      geom_ribbon(data = subset(newdata3, WORKSITE_STATE == reactive_inputs$stateOne|
+                                  WORKSITE_STATE == reactive_inputs$stateTwo |
+                                  WORKSITE_STATE == reactive_inputs$stateThree),
+                  aes(ymin = LL, ymax = UL, fill = WORKSITE_STATE), alpha = 0.2) +
+      geom_line(aes(colour = WORKSITE_STATE),size = 1)
   })
   
   num_applications <- reactive({
@@ -141,7 +163,7 @@ shinyServer(function(input, output, session) {
       data_denied <- filter(data, YEAR %in% reactive_inputs$year & 
                               CASE_STATUS == "DENIED" )
       
-      data_total <- filter(mydata)
+      data_total <- filter(data)
     } else {
       data_certified <- filter(data, YEAR %in% reactive_inputs$year & JOB_TITLE == reactive_inputs$job_title & 
                                  CASE_STATUS == "CERTIFIED" )
@@ -149,7 +171,7 @@ shinyServer(function(input, output, session) {
       data_denied <- filter(data, YEAR %in% reactive_inputs$year & JOB_TITLE == reactive_inputs$job_title & 
                               CASE_STATUS == "DENIED" )
       
-      data_total <- filter(mydata, JOB_TITLE == reactive_inputs$job_title) 
+      data_total <- filter(data, JOB_TITLE == reactive_inputs$job_title) 
     }
     
     newtable <- merge(data_certified %>% dplyr::group_by(EMPLOYER_NAME) %>% summarise(count = n()) %>% arrange(desc(count)),
@@ -162,7 +184,7 @@ shinyServer(function(input, output, session) {
     
     colnames(new) <- c("EMPLOYER_NAME", "CERTIFIED", "DENIED", "TOTAL")
     
-    df16 <- data.frame(PERCENTAGE = rep(new$DENIED/new$TOTAL), new[,])
+    df16 <- data.frame(PERCENTAGE = rep((new$DENIED/new$TOTAL)*100), new[,])
     
     df16 <- arrange(df16, desc(TOTAL))
     
@@ -200,6 +222,7 @@ shinyServer(function(input, output, session) {
     compdata <- data.frame(State = c(reactive_inputs$stateA,reactive_inputs$stateB),Average = c(avg,avg1))
     ggplot(compdata,aes(x= State,y = Average)) + geom_bar(stat = "identity",width = 0.5)
   })
+  
   
   
   

@@ -16,6 +16,14 @@ statesList = toupper(c("all states","alaska","alabama","arkansas","arizona","cal
 state_list <- as.list(statesList)
 names(state_list) <- statesList
 
+shortStatesList = toupper(c("CA","TX","FL","DC","NC","RI","IL","OH","WA","MI","GA","NY",
+                            "NJ","MA","VA","IN","MD","MO","NV","LA","MN","CO","TN","PA",
+                            "MS","UT","DE","VI","WI","CT","GU","MP","AZ","OK","AR","KY",
+                            "PR","SC","KS","HI","AK","WY","IA","ID","NE","NM","WV","SD",
+                            "OR","ND","ME","AL","VT","NH","MT","FM","MH","PW","AS"))
+short_state_list <- as.list(shortStatesList)
+names(short_state_list) <- shortStatesList
+
 shinyUI(fluidPage(
   id ="inputs",  
   theme = shinythemes::shinytheme("yeti"),
@@ -34,13 +42,16 @@ shinyUI(fluidPage(
                     "Case Denied" = "case_denied",
                     "Denied Wage Rate" = "wage_rate")),
       
-      textInput("job_title", "Job Title",""),
-    
-      selectInput("variable", "Choose Algoritm",
-                  c("Apriori" = "apriori",
-                    "Random Forest" = "random_forest",
-                    "SVM" = "svm",
-                    "Regression" = "regression")),
+      textInput("job_title", "Job Title","x"),
+      # actionButton("toggle", "Toggle the following text"),
+      # conditionalPanel(
+      #   condition = "input.toggle % 2 == 0",
+      #   textInput("job_title", "Job Title",""),
+      # ),
+      
+      # selectInput("location",
+      #             h3("Location"),
+      #             choices = state_list)
       
       actionButton("compute_result","Compute Results", icon = icon("refresh"))
     ),
@@ -50,17 +61,18 @@ shinyUI(fluidPage(
       tabsetPanel(
         tabPanel("Analytics", plotOutput("analyticsPlot", height=500)),
         
-        tabPanel("Wage Comparision", textInput("stateA", "State 1",""),
-                 textInput("stateB", "State 2",""), plotOutput("wageCompare")),
+        tabPanel("Wage Comparision", div(style="display:inline-block",selectInput("stateA", "State 1",choices = state_list)),
+                 div(style="display:inline-block",selectInput("stateB", "State 2",choices = state_list)), plotOutput("wageCompare")),
         
-        tabPanel("Job Title", plotOutput("jobTitlePlot")),
-        tabPanel("Company", plotOutput("companyPlot")),
-        tabPanel("Worksite", plotOutput("workSitePlot")),
-        tabPanel("Insights", selectInput("location", "Location", choices = state_list),
-                 textInput("job_title", "Job Title",""),
-                 tags$p("Top Applications are from California"))
+        tabPanel("AR Mining", plotOutput("apprioriPlot"), plotOutput("apprioriPlot1")),
+        
+        tabPanel("LogIt", div(style="display:inline-block",selectInput("stateOne", "State 1",choices = short_state_list)),
+                 div(style="display:inline-block",selectInput("stateTwo", "State 2",choices = short_state_list)),
+                 div(style="display:inline-block",selectInput("stateThree", "State 3",choices = short_state_list)),
+                 plotOutput("logisticPlot")),
+        
+        tabPanel("Worksite", plotOutput("workSitePlot"))
       )
     )
   )
-  
 ))
