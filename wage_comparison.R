@@ -10,6 +10,7 @@ test.case.na <- data.frame(CASE_STATUS=rep("None", nrow(test_na)), test_na[,])
 test.case.na$CASE_STATUS.1 <- NULL
 
 # Combine test and train datasets
+
 data.combined.na <- rbind(train_na,test.case.na)
 
 
@@ -35,3 +36,7 @@ avg <- getAverageWage(ed)
 avg1 <- getAverageWage(ed1)
 
 # avg and avg1 are the respective average wages in the respective states.
+
+#plot
+compdata <- data.frame(State = c("LOUSIANA","CALIFORNIA"),Average = c(avg,avg1))
+ggplot(compdata,aes(x= State,y = Average)) + geom_bar(stat = "identity",width = 0.5)
