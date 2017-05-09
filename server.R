@@ -224,6 +224,23 @@ shinyServer(function(input, output) {
   })
   
   
-  
+  output$heatmap <- renderPlot({
+    temp1 <- head(plyr::arrange(plyr::count(subset(data, YEAR %in% reactive_inputs$year),  
+                                            vars = "WORKSITE_CITY"),plyr::desc(freq)), n = reactive_inputs$slider_value)
+    
+    usa_geocodes <- readRDS("geocodes.rds")
+    USA = map_data(map = "state")
+    
+    temp1$lat <- usa_geocodes[match(temp1$WORKSITE_CITY,usa_geocodes$WORKSITE_CITY),2]
+    temp1$lon <- usa_geocodes[match(temp1$WORKSITE_CITY,usa_geocodes$WORKSITE_CITY),1]
+    
+    
+    usa <- map_data("usa") # we already did this, but we can do it again
+    ggplot() + geom_polygon(data = usa, aes(x=long, y = lat, group = group)) +geom_point(data=temp1, aes_string(x="lon", y="lat", label = "WORKSITE_CITY"), color="yellow", size=2)+
+      coord_fixed(1.3)+  coord_map(ylim = c(23,50),xlim=c(-130,-65)) + geom_text(data = temp1, aes(label = WORKSITE_CITY, x = lon, y = lat), hjust = 0,color="red",size=3.5)
+    
+    
+    
+  })
   
 })

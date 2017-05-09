@@ -71,7 +71,7 @@ shinyUI(fluidPage(
                  div(style="display:inline-block",selectInput("stateThree", "State 3",choices = short_state_list)),
                  plotOutput("logisticPlot")),
         
-        tabPanel("Worksite", plotOutput("workSitePlot"))
+        tabPanel("Map",plotOutput("heatmap"))
       )
     )
   )
