@@ -19,7 +19,6 @@ names(state_list) <- statesList
 shinyUI(fluidPage(
   id ="inputs",  
   theme = shinythemes::shinytheme("yeti"),
-  
   # Page title
   titlePanel("H-1B Data Analysis"),
   
@@ -28,18 +27,15 @@ shinyUI(fluidPage(
     sidebarPanel(
       sliderInput("year", "Year:", min = 2011, max = 2016, value = c(2011,2016)),
       
-      sliderInput("slider_value", "Number of Results", min = 10, max = 30, value = 15),
+      sliderInput("slider_value", "Number of Results", min = 5, max = 30, value = 15),
       
-      selectInput("metric", "Choose Metric", c("Number of Visa Applications" = "num_applications",
+      selectInput("metric", "Metric", c("Number of Visa Applications" = "num_applications",
                     "Case Status" = "case_status",
-                    "Case Certified" = "case_certified")),
-      
-      selectInput("location", "Location", choices = state_list),
-      
-      textInput("emp_name", "Employer Name",""),
+                    "Case Denied" = "case_denied",
+                    "Denied Wage Rate" = "wage_rate")),
       
       textInput("job_title", "Job Title",""),
-      
+    
       selectInput("variable", "Choose Algoritm",
                   c("Apriori" = "apriori",
                     "Random Forest" = "random_forest",
@@ -53,12 +49,18 @@ shinyUI(fluidPage(
     mainPanel(
       tabsetPanel(
         tabPanel("Analytics", plotOutput("analyticsPlot", height=500)),
-        tabPanel("Heat Map", plotOutput("distPlot")),
+        
+        tabPanel("Wage Comparision", textInput("stateA", "State 1",""),
+                 textInput("stateB", "State 2",""), plotOutput("wageCompare")),
+        
         tabPanel("Job Title", plotOutput("jobTitlePlot")),
         tabPanel("Company", plotOutput("companyPlot")),
         tabPanel("Worksite", plotOutput("workSitePlot")),
-        tabPanel("Insights", tags$p("Top Applications are from California"))
+        tabPanel("Insights", selectInput("location", "Location", choices = state_list),
+                 textInput("job_title", "Job Title",""),
+                 tags$p("Top Applications are from California"))
       )
     )
   )
+  
 ))
