@@ -1,7 +1,3 @@
-#install.packages("ggrepel")
-#install.packages("rdrop2")
-
-
 library(shiny)
 library(ggplot2)
 library(dplyr)
@@ -27,6 +23,7 @@ source("helper.R")
 #newdata3 <- glmModel(data)
 Rules <- readRDS("Rules.rds")
 newdata3 <- readRDS("glmModel.rds")
+usa_geocodes <- readRDS("geocodes.RDS")
 
 shinyServer(function(input, output) {
   
@@ -116,8 +113,13 @@ shinyServer(function(input, output) {
   
   num_applications <- reactive({
     print("Number of Applications...")
-    temp <- head(plyr::arrange(plyr::count(subset(data, YEAR %in% reactive_inputs$year),  
-                               vars = "EMPLOYER_NAME"),plyr::desc(freq)), n = reactive_inputs$slider_value)
+    new_df <- data
+    if(reactive_inputs$job_title != "") {
+      new_df <- subset(data, JOB_TITLE %in% reactive_inputs$job_title)
+    }
+    temp <- head(plyr::arrange(plyr::count(subset(new_df, YEAR %in% reactive_inputs$year),  
+                               vars = "EMPLOYER_NAME"), plyr::desc(freq)), 
+                 n = reactive_inputs$slider_value)
     
     ggplot(temp, aes(x=strtrim(EMPLOYER_NAME, 20), y=freq, fill = EMPLOYER_NAME)) + 
       geom_bar(stat="identity") + theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
@@ -200,10 +202,6 @@ shinyServer(function(input, output) {
   wage_compare <- reactive({
     print("Compare Wages...")
     
-    print(reactive_inputs$stateA)
-    print(reactive_inputs$stateB)
-    print(reactive_inputs$job_title)
-    
     # Dividing h1b_transformed_na into train and test data
     train_na = h1b_transformed_na[1:1299875,]
     test_na = h1b_transformed_na[1299876:2599750,]
@@ -222,22 +220,26 @@ shinyServer(function(input, output) {
     avg <- getAverageWage(ed)
     avg1 <- getAverageWage(ed1)
     
-    compdata <- data.frame(State = c(reactive_inputs$stateA,reactive_inputs$stateB),Average = c(avg,avg1))
+    compdata <- data.frame(State = c(reactive_inputs$stateA,reactive_inputs$stateB),
+                           Average = c(avg,avg1))
     
-    ggplot(compdata,aes(x= State,y = Average, fill = State)) + geom_bar(stat = "identity",width = 0.5) + guides(fill=FALSE)
+    ggplot(compdata,aes(x= State,y = Average, fill = State)) + 
+      geom_bar(stat = "identity",width = 0.5) + guides(fill=FALSE)
   })
   
   
   output$heatmap <- renderPlot({
     map_df <- data
+    
     if(reactive_inputs$job_title != "") {
       map_df <-  filter(data, JOB_TITLE %in% reactive_inputs$job_title)
     }
     
     temp1 <- head(plyr::arrange(plyr::count(subset(map_df, YEAR %in% reactive_inputs$year),  
-                                            vars = "WORKSITE_CITY"),plyr::desc(freq)), n = reactive_inputs$slider_value)
+                                            vars = "WORKSITE_CITY"), 
+                                plyr::desc(freq)), n = reactive_inputs$slider_value)
     
-    usa_geocodes <- readRDS("geocodes.rds")
+    #usa_geocodes <- readRDS("geocodes.rds")
     USA = map_data(map = "state")
     
     temp1$lat <- usa_geocodes[match(temp1$WORKSITE_CITY,usa_geocodes$WORKSITE_CITY),2]
@@ -245,27 +247,29 @@ shinyServer(function(input, output) {
     
     
     usa <- map_data("usa") # we already did this, but we can do it again
-    ggplot() + geom_polygon(data = usa, aes(x=long, y = lat, group = group)) +geom_point(data=temp1, aes_string(x="lon", y="lat", label = "WORKSITE_CITY"), color="yellow", size=2)+
-      coord_fixed(1.3)+  coord_map(ylim = c(23,50),xlim=c(-130,-65)) + geom_text(data = temp1, aes(label = WORKSITE_CITY, x = lon, y = lat), hjust = 0,color="red",size=3.5)
+    ggplot() + geom_polygon(data = usa, aes(x=long, y = lat, group = group)) + 
+      geom_point(data=temp1, aes_string(x="lon", y="lat", label = "WORKSITE_CITY"), color="yellow", size=2)+
+      coord_fixed(1.3)+  
+      coord_map(ylim = c(23,50),xlim=c(-130,-65)) + 
+      geom_text(data = temp1, aes(label = WORKSITE_CITY, x = lon, y = lat), hjust = 0, color="red",size=3.5)
     
   })
+  
   output$svm_algo  <- renderPlot({
     
-    print("In svm algo function")
+    print("Svm algo function...")
     
     svm_df <- data[1:100,]
     svm_df$PREVAILING_WAGE <- as.numeric(as.character(svm_df$PREVAILING_WAGE))
     svm_df$CASE_STATUS <- as.character(svm_df$CASE_STATUS)
-    #svm_df$EMPLOYER_NAME <- as.character(svm_df$EMPLOYER_NAME)
     
     svm_df[svm_df$CASE_STATUS == "CERTIFIED",]$CASE_STATUS = 1
     svm_df[svm_df$CASE_STATUS == "DENIED",]$CASE_STATUS = -1
-    
-    svm_df$UNIVERSITY <- as.factor(ifelse(str_detect(svm_df$EMPLOYER_NAME, "UNIVERSITY"), 1, 0))
+  
     
     
     # PREVAILING_WAGE 
-    #fewdata <- svm_df[1:100,]
+    
     svm_df <- subset(svm_df,select=c(PREVAILING_WAGE,CASE_STATUS))
     
     svm_df$CASE_STATUS <- as.numeric(svm_df$CASE_STATUS)
@@ -274,7 +278,6 @@ shinyServer(function(input, output) {
     model <- svm(CASE_STATUS ~ PREVAILING_WAGE, svm_df)
     
     print("After Model")
-    
     
     # make a prediction for each X
     predictedY <- data.frame(predict(model, svm_df))
@@ -288,11 +291,12 @@ shinyServer(function(input, output) {
     # p + geom_point()
     
     ggplot(svm_plot_df, aes(x=PREVAILING_WAGE)) +
-      geom_point(aes(y=CASE_STATUS,colour ="blue"))+
-      geom_point(aes(y=PREDICTED_VALUE,colour ="red")) 
+      geom_point(aes(y=CASE_STATUS,colour ="Case status"))+
+      geom_point(aes(y=PREDICTED_VALUE,colour ="Predicted Value")) + labs(color = "Legend")
     
   })  
   
+  #Influencial Data Attributes
   output$random_forest_algo <- renderPlot({
     # Dividing h1b_transformed_na into train and test data
     train_na = h1b_transformed_na[1:1299875,]
@@ -322,17 +326,21 @@ shinyServer(function(input, output) {
     
     set.seed(1234)
     rf.1 <- randomForest(x= rf.train.1,y=rf.label, importance=TRUE,ntree = 1000)
+    
     print(rf.1)
+    
     varImpPlot(rf.1)
   })
   
   
   output$wagePredict <- renderText({
     print("Wage Prediction...")
+    
     wage_predict()
   })
   
   wage_predict <- reactive({
+    
     if (reactive_inputs$Empname != "" & reactive_inputs$job_title != "" &
         reactive_inputs$stateW != "" & reactive_inputs$PYear != ""){
 

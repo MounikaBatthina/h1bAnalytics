@@ -1,34 +1,3 @@
-job_title_filter <- function(datadf,input_array){
-  
-  if(length(input_array) ==0){
-    return(datadf)  
-  }
-  filtered_data <- data.frame()
-  
-  for(type in input_array){
-    filtered_data <- rbind(filtered_data, datadf %>%
-                             filter(regexpr(type,JOB_TITLE,ignore.case=TRUE) != -1
-                             ))
-  }
-  return(unique(filtered_data))
-  
-}
-
-employer_filter <- function(df, input_vec) {
-  
-  if(length(input_vec) == 0) {
-    return(df)
-  }
-  
-  new_df <- data.frame()
-  
-  for(value in input_vec){
-    new_df <- rbind(new_df, df %>% 
-                      filter(regexpr(value,EMPLOYER_NAME,ignore.case=TRUE) != -1))
-  }
-  return(unique(new_df))
-}
-
 # Filtering dataset based on Jobtitle and Worksite_state
 extractData <- function(df,job_title, worksite_state) {
   extracted.data <- subset(df, JOB_TITLE == job_title & WORKSITE_STATE_FULL == worksite_state & CASE_STATUS=="CERTIFIED")
@@ -67,7 +36,8 @@ association <- function(data) {
 
 glmModel <- function(mydata) {
   # Subset the required data, Select CERTIFIED AND DENIED case status
-  newdata <- subset(mydata, (CASE_STATUS == "CERTIFIED" | CASE_STATUS == "DENIED") & PREVAILING_WAGE != "NA",
+  newdata <- subset(mydata, (CASE_STATUS == "CERTIFIED" | CASE_STATUS == "DENIED") & 
+                      PREVAILING_WAGE != "NA",
                     select = c(CASE_STATUS, PREVAILING_WAGE, WORKSITE_STATE))
   
   # Factor the case status to two levels
@@ -93,13 +63,14 @@ glmModel <- function(mydata) {
   newdata$CASE_STATUS <- as.numeric(sub(",","", newdata$CASE_STATUS))
   
   # Apply standard deviation on the trasformed data
-  sapply(newdata,sd)
-  summary(newdata)
+  #sapply(newdata,sd)
+  #summary(newdata)
   
   #-------------------TRAIN DATA------------------------------------------------------------------
   # Apply logistic regression (generalized liner model function) on the training data set
   # CASE STATUS is set as a function of PREVAILING WAGE and WORKSITE STATE factors
-  mylogit <- glm(CASE_STATUS ~ PREVAILING_WAGE + WORKSITE_STATE, data = subset(newdata, PREVAILING_WAGE < 200000), family = "binomial")
+  mylogit <- glm(CASE_STATUS ~ PREVAILING_WAGE + WORKSITE_STATE, 
+                 data = subset(newdata, PREVAILING_WAGE < 200000), family = "binomial")
   summary(mylogit)
   # confint(mylogit)
   exp(coef(mylogit))
@@ -114,26 +85,32 @@ glmModel <- function(mydata) {
   newdata1$Prob <- predict(mylogit,newdata = newdata1, type = "response")
   
   # Order the States in data frame with respect to the probability predicted
-  newdata1$WORKSITE_STATE <- factor(newdata1$WORKSITE_STATE, levels = newdata1$WORKSITE_STATE[order(newdata1$Prob)])
+  newdata1$WORKSITE_STATE <- factor(newdata1$WORKSITE_STATE, 
+                                    levels = newdata1$WORKSITE_STATE[order(newdata1$Prob)])
   
   #----------------------------PLOT THE PROBABILITY FOR GIVEN WAGE IN ALL STATES---------------------------------------
   # Ploting probabilities vs state for a given prevailing wage (here mean wage of entire data is considered
-  ggplot (newdata1, aes(WORKSITE_STATE,Prob)) +geom_point()
+  #ggplot (newdata1, aes(WORKSITE_STATE,Prob)) +geom_point()
   #ggplot (subset(newdata1,WORKSITE_STATE != "FM" & WORKSITE_STATE != ""), aes(WORKSITE_STATE,Prob)) +geom_point()
   
   #----------------------------------------------TEST DATA 2-----------------------------------
   # Create new dataframe with the main data 
   # Prevailing wage range from random wages between min - max wage and all the 57 unique state values
-  newdata2 <- with(subset(newdata,PREVAILING_WAGE < 200000), data.frame(PREVAILING_WAGE = rep(seq(from = min(PREVAILING_WAGE),
-                                                                                                  to = max(PREVAILING_WAGE),length.out = 100),60),WORKSITE_STATE = factor(rep(unique(WORKSITE_STATE), each = 100))))
+  newdata2 <- with(subset(newdata,PREVAILING_WAGE < 200000), 
+                   data.frame(PREVAILING_WAGE = rep(seq(from = min(PREVAILING_WAGE), 
+                                                        to = max(PREVAILING_WAGE),
+                                                        length.out = 100), 60), 
+                              WORKSITE_STATE = factor(rep(unique(WORKSITE_STATE), each = 100))))
   
   # Predict the probalilities 
   newdata3 <- cbind(newdata2, predict(mylogit, newdata = newdata2, type = "link",se = TRUE))
+  
   newdata3 <- within(newdata3, {
     PredictedProb <- plogis(fit)
     LL<- plogis(fit - (1.96 *se.fit))
     UL <- plogis(fit + (1.96 * se.fit))
   })
+  
   head(newdata3)
   saveRDS(newdata3, "glmModel.rds")
   return (newdata3)
